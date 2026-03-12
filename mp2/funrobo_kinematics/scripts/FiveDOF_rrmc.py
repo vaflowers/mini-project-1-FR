@@ -23,10 +23,6 @@ class FiveDOFRobot(FiveDOFRobotTemplate):
         
         if not radians: # Convert degrees to radians if the input is in degrees
             curr_joint_values = [np.deg2rad(theta) for theta in curr_joint_values]
-        
-        # Ensure that the joint angles respect the joint limits
-        #for i, theta in enumerate(curr_joint_values):
-            #curr_joint_values[i] = np.clip(theta, self.joint_limits[i][0], self.joint_limits[i][1])
 
         # Set the Denavit-Hartenberg parameters for each joint
         DH = np.zeros((self.num_dof, 4)) # [theta, d, a, alpha]
@@ -74,7 +70,6 @@ class FiveDOFRobot(FiveDOFRobotTemplate):
             new_joint_values = [theta + np.random.rand()*0.02 for theta in new_joint_values]
         
         # Calculate the joint velocity using the inverse Jacobian
-        # joint_vel = self.inverse_jacobian(new_joint_values, pseudo=True) @ vel
         joint_vel = self.damped_inverse_jacobian(new_joint_values) @ vel
 
         joint_vel = np.clip(joint_vel, 
@@ -161,69 +156,6 @@ class FiveDOFRobot(FiveDOFRobotTemplate):
         JT = np.transpose(J)
         I = np.eye(3)
         return JT @ np.linalg.inv(J @ JT + (damping_factor**2)*I)
-    
-    # def calc_inverse_kinematics(self, ee, init_joint_values, soln=0):
-    #     d5 = self.l4 + self.l5
-    #     ee_rotation = np.array(ut.euler_to_rotm((ee.rotx, ee.roty, ee.rotz)))
-    #     T_ee = np.eye(4)
-    #     T_ee[:3, :3] = ee_rotation
-    #     T_ee[:3,  3] = [ee.x, ee.y, ee.z]
-
-    #     w_x = ee.x - d5 * ee_rotation[0, 2]
-    #     w_y = ee.y - d5 * ee_rotation[1, 2]
-    #     w_z = ee.z - d5 * ee_rotation[2, 2]
-
-    #     theta1f = math.atan2(w_y, w_x)
-    #     theta1b = theta1f - np.pi if theta1f > 0 else theta1f + np.pi
-    #     theta1list = [theta1f, theta1b]
-
-    #     s = w_z - self.l1
-
-    #     possible_joint_values = []
-    #     for i in range(2):
-    #         theta1 = theta1list[i]
-
-    #         r = w_x * math.cos(theta1) + w_y * math.sin(theta1)
-    #         L = math.sqrt(r**2 + s**2)
-
-    #         cos_theta3 = (L**2 - self.l2**2 - self.l3**2) / (2 * self.l2 * self.l3)
-    #         cos_theta3 = np.clip(cos_theta3, -1.0, 1.0)
-    #         theta3_base = math.acos(cos_theta3)
-    #         theta3list = [theta3_base, -theta3_base]
-
-    #         for j in range(2):
-    #             theta3 = theta3list[j]
-
-    #             theta2 = math.atan2(r, s) + math.atan2(self.l3 * math.sin(theta3), self.l2 + self.l3 * math.cos(theta3))
-
-    #             H0_1 = ut.dh_to_matrix([theta1, self.l1, 0, -np.pi/2])
-    #             H1_2 = ut.dh_to_matrix([theta2 - np.pi/2, 0, self.l2, np.pi])
-    #             H2_3 = ut.dh_to_matrix([theta3, 0, self.l3, np.pi])
-    #             T03 = H0_1 @ H1_2 @ H2_3
-
-    #             M = np.linalg.inv(T03) @ T_ee
-    #             z_M = M[:3, 3] / d5
-    #             t4 = math.atan2(z_M[1], z_M[0])
-    #             DH4 = ut.dh_to_matrix([t4 + np.pi/2, 0, 0, np.pi/2])
-    #             DH5 = np.linalg.inv(DH4) @ M
-    #             t5 = math.atan2(DH5[1, 0], DH5[0, 0])
-
-    #             possible_joint_values.append([theta1, theta2, theta3, t4, t5])
-
-    #     print("new loop")
-    #     error_list = []
-    #     for jv in possible_joint_values:
-    #         ee_guess, _ = self.calc_forward_kinematics(jv)
-    #         print(f"joint vals: {jv}")
-    #         error = (abs(ee_guess.x - ee.x) +
-    #                 abs(ee_guess.y - ee.y) +
-    #                 abs(ee_guess.z - ee.z))
-    #         print(f"error: {error}")
-    #         error_list.append(error)
-
-    #     print(error_list)
-    #     sorted_indices = np.argsort(error_list)
-    #     return possible_joint_values[sorted_indices[0] if soln == 0 else sorted_indices[1]]
     
     def calc_inverse_kinematics(self, ee, joint_values: list, radians=True, soln = 0):
         
@@ -339,8 +271,6 @@ class FiveDOFRobot(FiveDOFRobotTemplate):
                 #damped inv jacobian
                 J = self.jacobian(joint_values)
                 joint_values += np.linalg.pinv(J) @ error
-                #J = self.damped_inverse_jacobian(joint_values)
-                #joint_values = joint_values + (J @ error)
 
                 #if converged
                 if abs(np.linalg.norm(error)) < tol:
@@ -350,13 +280,7 @@ class FiveDOFRobot(FiveDOFRobotTemplate):
                 
             joint_values = np.array([np.random.uniform(low, high) for low, high in self.joint_limits])
         
-
-                
         
-            
-
-
-
 if __name__ == "__main__":
     
     model = FiveDOFRobot()
